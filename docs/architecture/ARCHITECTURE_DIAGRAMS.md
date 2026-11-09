@@ -336,3 +336,4 @@ flowchart TD
     InternetUsers["Supply Chain Planners / Enterprise Systems"] -->|HTTP / 8050| Dash_Container
     ExternalAPIs["ERP / Automated Reordering Systems"] -->|HTTP REST / 8000| API_Container
 ```
+

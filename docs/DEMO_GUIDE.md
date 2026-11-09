@@ -133,3 +133,4 @@ curl -X POST http://localhost:8000/api/v1/inventory/optimize \
   -H "Content-Type: application/json" \
   -d '{"store_id": "CA_1", "horizon_days": 28, "budget_limit": 50000, "service_level": 0.95}' | jq
 ```
+

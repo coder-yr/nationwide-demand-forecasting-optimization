@@ -60,3 +60,4 @@ As documented in `README.md`, no open-source license is assigned without the rep
 ## 5. Conclusion
 
 The repository is now in an optimal state for technical review by engineering managers, senior data scientists, and quantitative recruiters. It combines rigorous data science, production-grade software engineering, and disciplined documentation.
+

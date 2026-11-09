@@ -24,3 +24,4 @@
 - [ ] **Hierarchical Coherence:** Parent-child reconciliation aggregates without mathematical discrepancy.
 - [ ] **Test Coverage:** All unit and integration tests pass (`python -m pytest tests/ -p no:dash`).
 - [ ] **No Committed Secrets or Large Datasets:** No raw `.csv` or generated `.parquet` files are tracked.
+
