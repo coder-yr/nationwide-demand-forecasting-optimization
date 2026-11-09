@@ -47,7 +47,10 @@ data/processed/*.parquet
 data/outputs/*.parquet
 data/outputs/*.csv
 
-# Keep directory scaffolding
+# Environment & Secrets
+.env
+*.env.local
+
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 !data/outputs/.gitkeep
