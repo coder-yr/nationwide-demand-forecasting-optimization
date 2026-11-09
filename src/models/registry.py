@@ -72,3 +72,4 @@ class ModelRegistry:
             logger.warning(f"No saved LightGBM model found at {model_dir}")
             return None
         return LGBMForecaster.load_model(str(model_dir))
+

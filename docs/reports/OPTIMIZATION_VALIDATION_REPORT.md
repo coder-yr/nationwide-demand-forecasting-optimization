@@ -83,3 +83,4 @@ Because the Kaggle M5 dataset only records unit sales, calendar events, and week
   * Physical inventory $\ge 0$ for $100\%$ of SKU-day combinations.
   * Integer orders respected across all periods ($Q_{i, t} \in \mathbb{N}$).
   * Zero MOQ violations observed.
+

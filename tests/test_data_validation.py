@@ -57,3 +57,4 @@ def test_downcaster_efficiency():
     assert downcasted["sales"].dtype == np.uint8
     assert downcasted["price"].dtype == np.float32
     assert isinstance(downcasted["category"].dtype, pd.CategoricalDtype)
+

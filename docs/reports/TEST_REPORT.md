@@ -35,3 +35,4 @@
 * Ending physical inventory remained strictly $\ge 0$ for $100\%$ of SKU-day periods.
 * Unmet demand was correctly accounted for as lost sales ($I_{neg} \ge 0$) without carrying over as phantom negative debt into subsequent days.
 * All order quantities respected integer physical packaging and minimum order quantities ($Q > 0 \implies Q \ge \text{MOQ}$).
+

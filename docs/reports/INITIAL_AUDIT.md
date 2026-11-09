@@ -165,3 +165,4 @@ The Walmart M5 dataset on Kaggle provides Point-of-Sale (POS) unit transactions,
 * Supplier lead times are assumed to follow $L_i \sim \text{Poisson}(\lambda=3 \text{ days})$.
 * Starting inventory is modeled as a service-level target fraction of historical 14-day velocity.
 * All assumptions are explicitly documented and labeled in both the API metadata and the Dashboard UI.
+

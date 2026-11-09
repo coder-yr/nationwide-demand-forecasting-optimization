@@ -72,3 +72,4 @@ def test_models_and_metrics_endpoints():
 def test_missing_forecast_404():
     res = client.get("/api/v1/forecasts/NON_EXISTENT_ID_9999")
     assert res.status_code == 404
+

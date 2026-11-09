@@ -82,3 +82,4 @@ This classification distinguishes implemented, partially implemented, and data-b
 | **Launch API Service** | `python -m uvicorn src.api.app:app --port 8000` | OpenAPI docs at `http://localhost:8000/docs`. |
 | **Launch Dashboard** | `python -m src.dashboard.app` | Control Tower at `http://localhost:8050`. |
 | **Run Containerized Stack**| `docker compose -f docker/docker-compose.yml up --build` | Multi-container API + Dash portal. |
+

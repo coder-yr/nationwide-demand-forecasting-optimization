@@ -160,3 +160,4 @@ Features follow strict temporal availability partitions:
   * Risk matrix scatter plot (identifying critical stockouts in red, optimal buffer in green, excess stock in yellow).
   * Interactive purchase order review and approval table.
   * Dynamic sliders for service level ($\beta = 85\% - 99\%$), budget, and lead times.
+
