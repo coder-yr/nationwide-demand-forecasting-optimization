@@ -6,12 +6,15 @@ class HealthResponse(BaseModel):
     status: str = "healthy"
     version: str = "1.0.0"
     data_lake_ready: bool = True
+    models_ready: bool = True
     available_stores: List[str]
+    active_parquet_partitions: int
 
 class HierarchyNode(BaseModel):
     state_id: str
     stores: List[str]
     categories: List[str]
+    departments: List[str]
 
 class ForecastRequest(BaseModel):
     store_id: str = Field(default="CA_1", description="Store code (e.g. CA_1)")
@@ -20,7 +23,15 @@ class ForecastRequest(BaseModel):
     model_name: str = Field(default="lgbm", description="lgbm, tft, or prophet")
     reconcile: bool = Field(default=True, description="Enforce hierarchical reconciliation")
 
+class ForecastSummaryItem(BaseModel):
+    forecast_id: str
+    store_id: str
+    created_at: str
+    record_count: int
+    horizon_days: int
+
 class ForecastResponse(BaseModel):
+    forecast_id: str
     store_id: str
     category: str
     horizon_days: int
@@ -46,6 +57,7 @@ class ReplenishmentItem(BaseModel):
     reorder_point: int
     recommended_order: int
     moq: int
+    unit_cost: float
     order_cost: float
     action: str
 
@@ -57,3 +69,13 @@ class ReplenishmentResponse(BaseModel):
     items_analyzed: int
     items: List[ReplenishmentItem]
 
+class ModelMetadataResponse(BaseModel):
+    models: Dict[str, Any]
+    last_updated: str
+
+class MetricsResponse(BaseModel):
+    store_id: str
+    wrmsse: Optional[float]
+    wape: Optional[float]
+    mean_pinball_loss: Optional[float]
+    source: str

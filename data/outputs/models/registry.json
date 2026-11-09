@@ -1,0 +1,71 @@
+{
+  "models": {
+    "LightGBM_Tweedie_CA_1": {
+      "model_name": "LightGBM_Tweedie",
+      "store_id": "CA_1",
+      "timestamp": "2026-11-09 22:14:07",
+      "metrics": {
+        "origin": 1913,
+        "wrmsse": 0.6868985944868505,
+        "wape": 0.7447505112268613,
+        "mean_pinball_loss": 0.35630374474268817
+      },
+      "hyperparameters": {
+        "model_type": "LightGBM_Tweedie_Quantile",
+        "quantiles": [
+          0.1,
+          0.5,
+          0.9
+        ],
+        "feature_cols": [
+          "wday",
+          "month",
+          "day_of_month",
+          "week",
+          "year",
+          "is_weekend",
+          "sin_wday",
+          "cos_wday",
+          "sin_month",
+          "cos_month",
+          "sin_week",
+          "cos_week",
+          "dept_id_code",
+          "cat_id_code",
+          "has_event",
+          "snap_current_state",
+          "sell_price",
+          "price_max_28d",
+          "price_min_28d",
+          "price_mean_28d",
+          "discount_ratio",
+          "is_discounted",
+          "price_diff_lag7",
+          "price_momentum",
+          "sales_lag_28",
+          "sales_lag_29",
+          "sales_lag_30",
+          "sales_lag_35",
+          "sales_lag_42",
+          "sales_lag_56",
+          "roll_mean_7",
+          "roll_std_7",
+          "roll_mean_14",
+          "roll_std_14",
+          "roll_mean_28",
+          "roll_std_28",
+          "roll_mean_56",
+          "roll_std_56",
+          "ewma_10",
+          "ewma_30"
+        ],
+        "n_estimators": 160,
+        "learning_rate": 0.08,
+        "num_leaves": 31,
+        "tweedie_power": 1.15
+      },
+      "artifact_path": "data/outputs/models/lgbm_CA_1"
+    }
+  },
+  "last_updated": "2026-11-09 22:14:07"
+}

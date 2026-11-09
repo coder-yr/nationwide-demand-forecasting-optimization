@@ -24,7 +24,7 @@ def downcast_dataframe(df: pd.DataFrame, verbose: bool = True) -> pd.DataFrame:
         col_type = df[col].dtype
 
         # Skip already categorical or datetime types
-        if pd.api.types.is_categorical_dtype(col_type) or pd.api.types.is_datetime64_any_dtype(col_type):
+        if isinstance(col_type, pd.CategoricalDtype) or pd.api.types.is_datetime64_any_dtype(col_type):
             continue
 
         if pd.api.types.is_integer_dtype(col_type):
@@ -56,8 +56,8 @@ def downcast_dataframe(df: pd.DataFrame, verbose: bool = True) -> pd.DataFrame:
         elif pd.api.types.is_object_dtype(col_type):
             num_unique = df[col].nunique()
             num_total = len(df[col])
-            # If cardinality ratio < 0.5, convert to category
-            if num_unique / max(num_total, 1) < 0.5:
+            # If cardinality ratio <= 0.5, convert to category
+            if num_unique / max(num_total, 1) <= 0.5:
                 df[col] = df[col].astype("category")
 
     final_mem_mb = df.memory_usage(deep=True).sum() / (1024 * 1024)
@@ -70,4 +70,3 @@ def downcast_dataframe(df: pd.DataFrame, verbose: bool = True) -> pd.DataFrame:
         )
 
     return df
-

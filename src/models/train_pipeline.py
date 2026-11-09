@@ -162,3 +162,4 @@ class ModelTrainingPipeline:
 if __name__ == "__main__":
     pipeline = ModelTrainingPipeline(store_id="CA_1")
     pipeline.run()
+

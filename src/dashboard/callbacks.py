@@ -8,7 +8,7 @@ from dash import Input, Output, html
 from src.optimization.safety_stock import calculate_safety_stock_and_rop
 from src.dashboard.layout import create_kpi_card
 
-def register_callbacks(app, mock_data_loader):
+def register_callbacks(app, data_loader):
     """Binds all reactive UI interaction logic to the Dash app."""
 
     @app.callback(
@@ -17,11 +17,14 @@ def register_callbacks(app, mock_data_loader):
             Output("inventory-risk-matrix", "figure"),
             Output("replenishment-table", "data"),
             Output("replenishment-table", "columns"),
-            Output("kpi-cards-row", "children")
+            Output("kpi-cards-row", "children"),
+            Output("provenance-badge", "children"),
+            Output("provenance-badge", "style")
         ],
         [
             Input("store-selector", "value"),
             Input("category-selector", "value"),
+            Input("department-selector", "value"),
             Input("horizon-selector", "value"),
             Input("slider-service-level", "value"),
             Input("slider-budget", "value"),
@@ -29,25 +32,36 @@ def register_callbacks(app, mock_data_loader):
             Input("btn-recompute", "n_clicks")
         ]
     )
-    def update_dashboard(store_id, category, horizon, service_level, budget, lead_time, n_clicks):
-        # 1. Fetch historical & forecast series from loader
-        history_dates, history_sales, future_dates, p10, p50, p90 = mock_data_loader.get_forecast_series(
+    def update_dashboard(store_id, category, department, horizon, service_level, budget, lead_time, n_clicks):
+        # 1. Fetch series from data loader (persisted forecast artifacts or data lake)
+        history_dates, history_sales, future_dates, p10, p50, p90, is_demo = data_loader.get_forecast_series(
             store_id=store_id,
             category=category,
+            department=department,
             horizon_days=horizon
         )
+
+        badge_text = "⚠️ Mode: Synthetic / Fallback" if is_demo else "⚡ Data Source: Active M5 Parquet Lake"
+        badge_style = {
+            "backgroundColor": "#fee2e2" if is_demo else "#d1fae5",
+            "color": "#991b1b" if is_demo else "#065f46",
+            "padding": "6px 14px",
+            "borderRadius": "20px",
+            "fontSize": "12px",
+            "fontWeight": "600"
+        }
 
         # 2. Build Fan Chart
         fig_fan = go.Figure()
 
-        # Historical series
-        fig_fan.add_trace(go.Scatter(
-            x=history_dates,
-            y=history_sales,
-            mode="lines",
-            name="Historical Sales",
-            line=dict(color="#4b5563", width=2)
-        ))
+        if len(history_dates) > 0 and len(history_sales) > 0:
+            fig_fan.add_trace(go.Scatter(
+                x=history_dates,
+                y=history_sales,
+                mode="lines",
+                name="Historical Sales",
+                line=dict(color="#4b5563", width=2)
+            ))
 
         # P90 upper bound
         fig_fan.add_trace(go.Scatter(
@@ -67,7 +81,7 @@ def register_callbacks(app, mock_data_loader):
             line=dict(width=0),
             fill="tonexty",
             fillcolor="rgba(37, 99, 235, 0.18)",
-            name="80% Confidence Interval (P10-P90)"
+            name="80% Prediction Interval (P10-P90)"
         ))
 
         # P50 median forecast
@@ -90,7 +104,7 @@ def register_callbacks(app, mock_data_loader):
         )
 
         # 3. Build Risk Matrix & Replenishment Table
-        items_df = mock_data_loader.get_inventory_snapshot(store_id, category)
+        items_df = data_loader.get_inventory_snapshot(store_id, category, department)
 
         # Apply Safety stock & ROP calculation
         ss_metrics = calculate_safety_stock_and_rop(
@@ -165,11 +179,10 @@ def register_callbacks(app, mock_data_loader):
         stockout_pct = (stockout_items / max(len(items_df), 1)) * 100.0
 
         kpi_cards = [
-            create_kpi_card("Projected Horizon Demand", f"{total_projected_demand:,} Units", f"Across Store {store_id}"),
-            create_kpi_card("Stockout Risk Items", f"{stockout_pct:.1f}% ({stockout_items} SKUs)", "Immediate reorder required" if stockout_items > 0 else "All SKUs buffered"),
-            create_kpi_card("Recommended Spend", f"${total_spend:,.2f}", f"Budget cap: ${budget:,.0f}"),
+            create_kpi_card("Projected Horizon Demand", f"{total_projected_demand:,} Units", f"Store {store_id} ({category})"),
+            create_kpi_card("Stockout Risk Items", f"{stockout_pct:.1f}% ({stockout_items} SKUs)", "Immediate reorder required" if stockout_items > 0 else "All SKUs safely buffered"),
+            create_kpi_card("Recommended Spend", f"${total_spend:,.2f}", f"Daily budget: ${budget:,.0f}"),
             create_kpi_card("Service Level Target", f"{int(service_level*100)}%", f"Lead buffer: +{lead_time}d")
         ]
 
-        return fig_fan, fig_risk, table_data, columns, kpi_cards
-
+        return fig_fan, fig_risk, table_data, columns, kpi_cards, badge_text, badge_style

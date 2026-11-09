@@ -141,3 +141,4 @@ class ReplenishmentPipeline:
 if __name__ == "__main__":
     pipeline = ReplenishmentPipeline(store_id="CA_1")
     pipeline.run()
+

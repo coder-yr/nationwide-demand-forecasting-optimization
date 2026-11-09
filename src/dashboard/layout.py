@@ -1,9 +1,8 @@
 """Plotly Dash Layout for the Nationwide Demand Forecasting and Inventory Optimization Control Tower."""
 from dash import html, dcc, dash_table
-import plotly.graph_objects as go
 
-def create_kpi_card(title: str, value: str, subtitle: str, color_class: str = "text-primary") -> html.Div:
-    """Helper to render standardized KPI metric tiles."""
+def create_kpi_card(title: str, value: str, subtitle: str) -> html.Div:
+    """Renders standardized KPI metric tiles."""
     return html.Div(
         style={
             "flex": "1",
@@ -21,30 +20,44 @@ def create_kpi_card(title: str, value: str, subtitle: str, color_class: str = "t
         ]
     )
 
-def build_dashboard_layout(stores: list, categories: list) -> html.Div:
-    """Constructs the complete DOM layout for the Dash portal."""
+def build_dashboard_layout(stores: list, categories: list, departments: list) -> html.Div:
+    """Constructs the complete layout for the Dash portal."""
     return html.Div(
-        style={"backgroundColor": "#f8f9fa", "fontFamily": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif", "minHeight": "100vh", "padding": "24px 32px"},
+        style={
+            "backgroundColor": "#f8f9fa",
+            "fontFamily": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+            "minHeight": "100vh",
+            "padding": "24px 32px"
+        },
         children=[
             # Header Title Bar
             html.Div(
-                style={"display": "flex", "justifyContent": "space-between", "alignItems": "center", "marginBottom": "24px", "borderBottom": "1px solid #e9ecef", "paddingBottom": "16px"},
+                style={"display": "flex", "justifyContent": "space-between", "alignItems": "center", "marginBottom": "20px", "borderBottom": "1px solid #e9ecef", "paddingBottom": "16px"},
                 children=[
                     html.Div([
                         html.H2("Nationwide Demand Forecasting & Inventory Optimization", style={"margin": "0", "color": "#111827", "fontWeight": "700"}),
-                        html.P("Walmart M5 Enterprise Supply Chain Decision Support Platform", style={"margin": "4px 0 0 0", "color": "#6b7280", "fontSize": "14px"})
+                        html.P("Walmart M5 Enterprise Supply Chain Decision Support Control Tower", style={"margin": "4px 0 0 0", "color": "#6b7280", "fontSize": "14px"})
                     ]),
                     html.Div(
                         style={"display": "flex", "gap": "10px"},
                         children=[
-                            html.Span("⚡ Production Engine: Active", style={"backgroundColor": "#d1fae5", "color": "#065f46", "padding": "6px 14px", "borderRadius": "20px", "fontSize": "12px", "fontWeight": "600"}),
-                            html.Span("Hierarchical Coherence: Verified", style={"backgroundColor": "#dbeafe", "color": "#1e40af", "padding": "6px 14px", "borderRadius": "20px", "fontSize": "12px", "fontWeight": "600"})
+                            html.Span(id="provenance-badge", children="⚡ Data Source: Active M5 Lake", style={"backgroundColor": "#d1fae5", "color": "#065f46", "padding": "6px 14px", "borderRadius": "20px", "fontSize": "12px", "fontWeight": "600"}),
+                            html.Span("Hierarchical Coherence: Verified (12 Levels)", style={"backgroundColor": "#dbeafe", "color": "#1e40af", "padding": "6px 14px", "borderRadius": "20px", "fontSize": "12px", "fontWeight": "600"})
                         ]
                     )
                 ]
             ),
 
-            # Global Filter Controls Bar
+            # Disclosed Operational Assumptions Banner
+            html.Div(
+                style={"backgroundColor": "#fffbeb", "borderLeft": "4px solid #f59e0b", "padding": "10px 16px", "borderRadius": "6px", "marginBottom": "20px", "fontSize": "12px", "color": "#92400e"},
+                children=[
+                    html.Strong("Operational Supply Chain Assumptions: "),
+                    "The M5 dataset provides POS sales, prices, and events. Inventory levels, MOQs, supplier lead times, and capacity ceilings are simulated using configurable industrial supply chain policies (Wholesale unit cost = 65% of price, Lead time = 2-3 days, Service level target = 95%)."
+                ]
+            ),
+
+            # Global Hierarchical Filter Controls Bar
             html.Div(
                 style={
                     "backgroundColor": "#ffffff",
@@ -52,9 +65,10 @@ def build_dashboard_layout(stores: list, categories: list) -> html.Div:
                     "borderRadius": "10px",
                     "boxShadow": "0 2px 6px rgba(0,0,0,0.06)",
                     "display": "flex",
-                    "gap": "16px",
+                    "gap": "14px",
                     "alignItems": "center",
-                    "marginBottom": "24px"
+                    "marginBottom": "24px",
+                    "flexWrap": "wrap"
                 },
                 children=[
                     html.Div([
@@ -64,14 +78,24 @@ def build_dashboard_layout(stores: list, categories: list) -> html.Div:
                             options=[{"label": s, "value": s} for s in stores],
                             value=stores[0] if stores else "CA_1",
                             clearable=False,
-                            style={"width": "160px"}
+                            style={"width": "150px"}
                         )
                     ]),
                     html.Div([
-                        html.Label("Product Category", style={"fontSize": "12px", "fontWeight": "600", "color": "#4b5563"}),
+                        html.Label("Category", style={"fontSize": "12px", "fontWeight": "600", "color": "#4b5563"}),
                         dcc.Dropdown(
                             id="category-selector",
                             options=[{"label": "ALL CATEGORIES", "value": "ALL"}] + [{"label": c, "value": c} for c in categories],
+                            value="ALL",
+                            clearable=False,
+                            style={"width": "180px"}
+                        )
+                    ]),
+                    html.Div([
+                        html.Label("Department", style={"fontSize": "12px", "fontWeight": "600", "color": "#4b5563"}),
+                        dcc.Dropdown(
+                            id="department-selector",
+                            options=[{"label": "ALL DEPARTMENTS", "value": "ALL"}] + [{"label": d, "value": d} for d in departments],
                             value="ALL",
                             clearable=False,
                             style={"width": "190px"}
@@ -96,17 +120,16 @@ def build_dashboard_layout(stores: list, categories: list) -> html.Div:
                         dcc.Dropdown(
                             id="model-selector",
                             options=[
-                                {"label": "LightGBM Quantile (Primary)", "value": "lgbm"},
-                                {"label": "Temporal Fusion Transformer (TFT)", "value": "tft"},
+                                {"label": "LightGBM Tweedie+Quantile", "value": "lgbm"},
                                 {"label": "Prophet Macro Aggregate", "value": "prophet"}
                             ],
                             value="lgbm",
                             clearable=False,
-                            style={"width": "230px"}
+                            style={"width": "220px"}
                         )
                     ]),
                     html.Button(
-                        "Run Replenishment Engine",
+                        "Recompute Optimization",
                         id="btn-recompute",
                         n_clicks=0,
                         style={
@@ -114,7 +137,7 @@ def build_dashboard_layout(stores: list, categories: list) -> html.Div:
                             "backgroundColor": "#2563eb",
                             "color": "#ffffff",
                             "border": "none",
-                            "padding": "10px 20px",
+                            "padding": "10px 18px",
                             "borderRadius": "6px",
                             "fontWeight": "600",
                             "cursor": "pointer"
@@ -123,15 +146,15 @@ def build_dashboard_layout(stores: list, categories: list) -> html.Div:
                 ]
             ),
 
-            # Executive KPI Cards Row
+            # Executive KPI Cards Row (populated dynamically by callbacks)
             html.Div(
                 id="kpi-cards-row",
                 style={"display": "flex", "marginBottom": "24px"},
                 children=[
-                    create_kpi_card("Projected Demand", "148,250 Units", "+4.2% vs prev horizon"),
-                    create_kpi_card("Stockout Risk Exposure", "1.8%", "-0.9% target achieved"),
-                    create_kpi_card("Working Capital Requirement", "$412,600", "Within budget ($500k cap)"),
-                    create_kpi_card("Holding Cost Savings", "$24,850", "Optimized via OR-Tools")
+                    create_kpi_card("Projected Demand", "Calculating...", "Loading data..."),
+                    create_kpi_card("Stockout Risk Exposure", "Calculating...", "Loading data..."),
+                    create_kpi_card("Working Capital Requirement", "Calculating...", "Loading data..."),
+                    create_kpi_card("Service Level Target", "95%", "Configured target")
                 ]
             ),
 
@@ -229,4 +252,3 @@ def build_dashboard_layout(stores: list, categories: list) -> html.Div:
             )
         ]
     )
-

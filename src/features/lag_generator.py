@@ -18,23 +18,27 @@ def generate_lag_features(
 ) -> pd.DataFrame:
     """Generates lag and rolling features grouped by item_id within a store partition.
 
+    All features use a strict forecast-origin boundary: any observation at time t
+    only aggregates information from <= t - min_shift.
+
     Args:
         df: DataFrame sorted by item_id and d_num / date.
-        lags: Explicit lag offsets (all >= min_shift). Defaults to [28, 29, 30, 35, 42, 56].
-        rolling_windows: Windows for rolling mean/std. Defaults to [7, 14, 28, 60].
-        min_shift: Base minimum shift for rolling windows to prevent leakage.
+        lags: Explicit lag offsets (all >= min_shift).
+              Defaults to [28, 29, 30, 35, 42, 56, 84, 364].
+        rolling_windows: Windows for rolling mean/std. Defaults to [7, 14, 28, 56].
+        min_shift: Base minimum shift for rolling windows to prevent leakage (default 28).
 
     Returns:
         pd.DataFrame: Augmented DataFrame with lag & rolling columns.
     """
     if lags is None:
-        lags = [28, 29, 30, 35, 42, 56]
+        lags = [28, 29, 30, 35, 42, 56, 84, 364]
     if rolling_windows is None:
-        rolling_windows = [7, 14, 28, 60]
+        rolling_windows = [7, 14, 28, 56]
 
     logger.info(f"Generating lag features: lags={lags}, rolling_windows={rolling_windows}, min_shift={min_shift}")
 
-    # Ensure strictly sorted by item and time
+    # Ensure strictly sorted by item and sequence
     df = df.sort_values(["item_id", "d_num"]).reset_index(drop=True)
     grouped = df.groupby("item_id")["sales"]
 
@@ -43,7 +47,7 @@ def generate_lag_features(
         assert lag >= min_shift, f"Lag {lag} violates minimum safe shift of {min_shift} days!"
         df[f"sales_lag_{lag}"] = grouped.shift(lag).astype(np.float32)
 
-    # 2. Shifted rolling statistics (shift by min_shift first, then apply rolling)
+    # 2. Shifted rolling statistics (shift by min_shift FIRST, then apply rolling)
     base_shifted = grouped.shift(min_shift)
     for w in rolling_windows:
         roll = base_shifted.groupby(df["item_id"]).rolling(window=w, min_periods=1)
@@ -60,4 +64,3 @@ def generate_lag_features(
         )
 
     return df
-

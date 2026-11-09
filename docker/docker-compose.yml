@@ -1,0 +1,35 @@
+version: "3.8"
+
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    container_name: m5-forecast-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../data:/app/data
+      - ../config:/app/config
+    environment:
+      - PYTHONUNBUFFERED=1
+      - KMP_DUPLICATE_LIB_OK=TRUE
+    restart: unless-stopped
+
+  dashboard:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dashboard
+    container_name: m5-inventory-dashboard
+    ports:
+      - "8050:8050"
+    volumes:
+      - ../data:/app/data
+      - ../config:/app/config
+    environment:
+      - PYTHONUNBUFFERED=1
+      - KMP_DUPLICATE_LIB_OK=TRUE
+    depends_on:
+      - api
+    restart: unless-stopped
+

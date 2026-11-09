@@ -15,10 +15,11 @@ def create_app() -> dash.Dash:
     )
 
     data_loader = DashboardDataLoader()
-    stores = ["CA_1", "CA_2", "CA_3", "CA_4", "TX_1", "TX_2", "TX_3", "WI_1", "WI_2", "WI_3"]
+    stores = data_loader.get_available_stores()
     categories = ["FOODS", "HOBBIES", "HOUSEHOLD"]
+    departments = ["FOODS_1", "FOODS_2", "FOODS_3", "HOBBIES_1", "HOBBIES_2", "HOUSEHOLD_1", "HOUSEHOLD_2"]
 
-    app.layout = build_dashboard_layout(stores=stores, categories=categories)
+    app.layout = build_dashboard_layout(stores=stores, categories=categories, departments=departments)
     register_callbacks(app, data_loader)
 
     return app

@@ -1,51 +1,53 @@
-"""Unit tests for hierarchical reconciliation and mathematical coherence."""
+"""Exhaustive Tests for Complete 12-Level Hierarchical Reconciliation and Coherence."""
 import numpy as np
 import pandas as pd
 import pytest
-from src.models.reconciler import HierarchicalReconciler
 
-def test_bottom_up_coherence():
-    # Construct a synthetic multi-store, multi-dept dataset
-    dates = pd.date_range("2016-01-01", periods=5)
+from src.models.reconciler import CompleteHierarchicalReconciler
+
+def create_synthetic_bottom_panel(num_days=10):
+    """Generates a complete multi-tier Level 12 dataset across states, stores, categories, depts."""
+    dates = pd.date_range("2016-01-01", periods=num_days)
     records = []
+    
+    # 2 States (CA, TX), 2 stores each, 2 categories (FOODS, HOBBIES), 2 depts each, 2 items each
     for d in dates:
-        for store in ["CA_1", "CA_2"]:
-            for dept in ["FOODS_1", "HOBBIES_1"]:
-                for item in [1, 2]:
-                    records.append({
-                        "date": d,
-                        "state_id": "CA",
-                        "store_id": store,
-                        "dept_id": dept,
-                        "cat_id": dept.split("_")[0],
-                        "item_id": f"{dept}_{item}",
-                        "p50": np.random.uniform(10, 50)
-                    })
-    df = pd.DataFrame(records)
+        for state in ["CA", "TX"]:
+            for store_num in [1, 2]:
+                store_id = f"{state}_{store_num}"
+                for cat in ["FOODS", "HOBBIES"]:
+                    for dept_num in [1, 2]:
+                        dept_id = f"{cat}_{dept_num}"
+                        for item_num in [1, 2]:
+                            item_id = f"{dept_id}_{item_num:03d}"
+                            records.append({
+                                "date": d,
+                                "state_id": state,
+                                "store_id": store_id,
+                                "cat_id": cat,
+                                "dept_id": dept_id,
+                                "item_id": item_id,
+                                "p50": float(np.random.randint(1, 20))
+                            })
+    return pd.DataFrame(records)
 
-    reconciled = HierarchicalReconciler.bottom_up_reconciliation(df, forecast_val_col="p50")
+def test_full_12_level_reconciliation_coherence():
+    """Verifies that all 12 hierarchical tiers are generated and parent-child coherence is exact."""
+    df_bottom = create_synthetic_bottom_panel(num_days=7)
+    reconciled = CompleteHierarchicalReconciler.bottom_up_reconciliation(df_bottom, val_col="p50")
 
-    # Verify that sum of store-dept equals store total
-    store_dept = reconciled["level_9_store_dept"]
-    store_tot = reconciled["level_3_store"]
+    # Verify all 12 levels exist
+    for lvl in range(1, 13):
+        assert lvl in reconciled, f"Level {lvl} missing from reconciled output!"
+        assert len(reconciled[lvl]) > 0, f"Level {lvl} has 0 records!"
 
-    is_coherent = HierarchicalReconciler.verify_coherence(
-        child_forecasts=store_dept,
-        parent_forecasts=store_tot,
-        child_group_cols=["store_id", "date"],
-        parent_group_cols=["store_id", "date"],
-        val_col="reconciled_sales"
-    )
-    assert is_coherent, "Store Department sum does not match Store Total!"
+    # Run exhaustive parent-child key-matched verification
+    is_coherent, log = CompleteHierarchicalReconciler.verify_exhaustive_coherence(reconciled)
 
-    # Verify that sum of stores equals State total
-    state_tot = reconciled["level_2_state"]
-    is_state_coherent = HierarchicalReconciler.verify_coherence(
-        child_forecasts=store_tot,
-        parent_forecasts=state_tot,
-        child_group_cols=["date"],
-        parent_group_cols=["date"],
-        val_col="reconciled_sales"
-    )
-    assert is_state_coherent, "Store sum does not match State Total!"
+    for entry in log:
+        assert entry["is_coherent"], (
+            f"COHERENCE FAILURE: Level {entry['parent_level']} ({entry['parent_name']}) vs "
+            f"Level {entry['child_level']} ({entry['child_name']}) has error {entry['max_discrepancy']}!"
+        )
 
+    assert is_coherent is True
