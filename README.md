@@ -105,3 +105,34 @@ python -m uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload
 ```
 Interactive API docs available at: `http://localhost:8000/docs`
 
+### 5. Master CLI Orchestrator
+Execute any pipeline stage or the full end-to-end flow:
+```bash
+# Run entire pipeline (ingestion, training, optimization)
+python run_system.py --mode all --store CA_1
+
+# Run only test suite
+python run_system.py --mode test
+```
+
+### 6. Production Containerized Deployment (Docker)
+Build and spin up both the FastAPI backend and Plotly Dash Control Tower:
+```bash
+docker-compose -f docker/docker-compose.yml up --build -d
+```
+- API Docs: `http://localhost:8000/docs`
+- Dash Control Tower: `http://localhost:8050`
+
+---
+
+## 📊 Technical Reports & Architecture Documentation
+Detailed engineering audits and benchmark reports are available in [`docs/`](docs/):
+- **Repository Audit:** [`docs/reports/INITIAL_AUDIT.md`](docs/reports/INITIAL_AUDIT.md)
+- **Target Architecture:** [`docs/architecture/CURRENT_ARCHITECTURE.md`](docs/architecture/CURRENT_ARCHITECTURE.md)
+- **Data Quality Report:** [`docs/reports/DATA_QUALITY_REPORT.md`](docs/reports/DATA_QUALITY_REPORT.md)
+- **Model Evaluation & WRMSSE:** [`docs/reports/MODEL_EVALUATION_REPORT.md`](docs/reports/MODEL_EVALUATION_REPORT.md)
+- **Inventory Optimization Formulation:** [`docs/reports/OPTIMIZATION_VALIDATION_REPORT.md`](docs/reports/OPTIMIZATION_VALIDATION_REPORT.md)
+- **Automated Test Report:** [`docs/reports/TEST_REPORT.md`](docs/reports/TEST_REPORT.md)
+- **Production Readiness & Runbook:** [`docs/reports/PRODUCTION_READINESS_REPORT.md`](docs/reports/PRODUCTION_READINESS_REPORT.md)
+
+
