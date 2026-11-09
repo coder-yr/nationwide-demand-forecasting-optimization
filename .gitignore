@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+.venv/
+ENV/
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE & OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Large Datasets and Parquet Lakes (>100MB exceeds GitHub push limits)
+data/raw/*.csv
+data/raw/*.zip
+data/processed/**/*.parquet
+data/processed/*.parquet
+data/outputs/*.parquet
+data/outputs/*.csv
+
+# Keep directory scaffolding
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/outputs/.gitkeep
