@@ -133,7 +133,8 @@ class DashboardDataLoader:
                 is_demo_mode = True
                 history_dates_dt = pd.date_range(end=pd.Timestamp.today(), periods=60)
                 history_dates = [d.strftime("%Y-%m-%d") for d in history_dates_dt]
-                history_sales = np.random.poisson(lam=3500, size=60)
+                rng = np.random.RandomState(42)
+                history_sales = rng.poisson(lam=3500, size=60)
 
                 future_dates_dt = pd.date_range(start=history_dates_dt[-1] + pd.Timedelta(days=1), periods=horizon_days)
                 future_dates = [d.strftime("%Y-%m-%d") for d in future_dates_dt]
@@ -152,6 +153,7 @@ class DashboardDataLoader:
         department: str = "ALL"
     ) -> pd.DataFrame:
         """Returns inventory, current stock, unit cost, and MOQ for active items."""
+        import zlib
         parquet_file = self.stores_dir / f"store_{store_id}.parquet"
 
         if parquet_file.exists():
@@ -172,6 +174,7 @@ class DashboardDataLoader:
                         SELECT DISTINCT item_id 
                         FROM read_parquet(?)
                         {where_sql}
+                        ORDER BY item_id
                         LIMIT 40
                     )
                     SELECT 
@@ -184,28 +187,37 @@ class DashboardDataLoader:
                     FROM read_parquet(?) p
                     JOIN ranked_items r ON p.item_id = r.item_id
                     GROUP BY p.item_id, p.dept_id, p.cat_id
+                    ORDER BY p.item_id
                 """
                 item_summary = con.execute(sql, [str(parquet_file)] + params + [str(parquet_file)]).df()
             finally:
                 con.close()
 
-            np.random.seed(42)
-            n = len(item_summary)
+            def _get_item_stock(item_id: str) -> int:
+                # Deterministic stock assignment per SKU
+                return int((zlib.crc32(item_id.encode("utf-8")) % 45) + 5)
+
+            def _get_item_moq(item_id: str) -> int:
+                moqs = [6, 12, 24, 48]
+                return moqs[zlib.crc32((item_id + "_moq").encode("utf-8")) % len(moqs)]
+
             item_summary["unit_cost"] = (item_summary["sell_price"] * 0.65).round(2)
             item_summary["p50_demand"] = np.ceil(item_summary["mean_sales"] * 7.0).astype(int)
             item_summary["p10_demand"] = np.ceil(item_summary["p50_demand"] * 0.70).astype(int)
             item_summary["p90_demand"] = np.ceil(item_summary["p50_demand"] * 1.45).astype(int)
-            item_summary["on_hand_stock"] = np.random.randint(0, 50, size=n)
-            item_summary["moq"] = np.random.choice([6, 12, 24, 48], size=n)
+            item_summary["on_hand_stock"] = [_get_item_stock(x) for x in item_summary["item_id"]]
+            item_summary["moq"] = [_get_item_moq(x) for x in item_summary["item_id"]]
 
             return item_summary
 
         else:
             data = []
             for i in range(30):
-                p50 = np.random.randint(10, 80)
+                item_id = f"FOODS_1_{i:03d}"
+                p50 = 20 + int(zlib.crc32(item_id.encode("utf-8")) % 60)
+                stock = int((zlib.crc32((item_id + "_stock").encode("utf-8")) % 50) + 5)
                 data.append({
-                    "item_id": f"FOODS_1_{i:03d}",
+                    "item_id": item_id,
                     "dept_id": "FOODS_1",
                     "cat_id": "FOODS",
                     "sell_price": 4.99,
@@ -213,7 +225,7 @@ class DashboardDataLoader:
                     "p50_demand": p50,
                     "p10_demand": int(p50 * 0.7),
                     "p90_demand": int(p50 * 1.4),
-                    "on_hand_stock": np.random.randint(0, 60),
+                    "on_hand_stock": stock,
                     "moq": 12
                 })
             return pd.DataFrame(data)
