@@ -102,7 +102,11 @@ def list_forecasts():
     summaries = []
     for f in forecast_files:
         store = f.stem.replace("forecast_", "")
-        df = duckdb.read_parquet(str(f)).df()
+        con = duckdb.connect(":memory:")
+        try:
+            df = con.read_parquet(str(f)).df()
+        finally:
+            con.close()
         summaries.append(ForecastSummaryItem(
             forecast_id=f.stem,
             store_id=store,
@@ -122,7 +126,11 @@ def get_forecast_by_id(forecast_id: str):
     if not forecast_path.exists():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Forecast '{forecast_id}' not found.")
 
-    df = duckdb.read_parquet(str(forecast_path)).df()
+    con = duckdb.connect(":memory:")
+    try:
+        df = con.read_parquet(str(forecast_path)).df()
+    finally:
+        con.close()
     daily = df.groupby("date").agg({"p10": "sum", "p50": "sum", "p90": "sum"}).reset_index().sort_values("date")
     dates = [d.strftime("%Y-%m-%d") for d in daily["date"]]
     store_val = str(df["store_id"].iloc[0]) if "store_id" in df.columns else forecast_id

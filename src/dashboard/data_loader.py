@@ -38,96 +38,112 @@ class DashboardDataLoader:
         Returns:
             (history_dates, history_sales, future_dates, p10, p50, p90, is_demo_mode)
         """
-        # 1. Prefer actual trained forecast artifacts if available
         forecast_file = self.outputs_dir / f"forecast_{store_id}.parquet"
         parquet_file = self.stores_dir / f"store_{store_id}.parquet"
 
         is_demo_mode = False
 
-        if forecast_file.exists():
-            df_fc = duckdb.read_parquet(str(forecast_file)).df()
+        con = duckdb.connect(":memory:")
+        try:
+            where_parts = []
+            params = []
             if category != "ALL":
-                df_fc = df_fc[df_fc["cat_id"] == category]
+                where_parts.append("cat_id = ?")
+                params.append(category)
             if department != "ALL":
-                df_fc = df_fc[df_fc["dept_id"] == department]
+                where_parts.append("dept_id = ?")
+                params.append(department)
             if item_id != "ALL":
-                df_fc = df_fc[df_fc["item_id"] == item_id]
+                where_parts.append("item_id = ?")
+                params.append(item_id)
+            where_sql = ("WHERE " + " AND ".join(where_parts)) if where_parts else ""
 
-            # Aggregate future quantiles
-            daily_fc = df_fc.groupby("date").agg({
-                "p10": "sum",
-                "p50": "sum",
-                "p90": "sum"
-            }).reset_index().sort_values("date").head(horizon_days)
+            # 1. Prefer actual trained forecast artifacts if available
+            if forecast_file.exists():
+                sql_fc = f"""
+                    SELECT date, 
+                           CAST(SUM(p10) AS DOUBLE) as p10, 
+                           CAST(SUM(p50) AS DOUBLE) as p50, 
+                           CAST(SUM(p90) AS DOUBLE) as p90
+                    FROM read_parquet(?)
+                    {where_sql}
+                    GROUP BY date
+                    ORDER BY date
+                    LIMIT {horizon_days}
+                """
+                daily_fc = con.execute(sql_fc, [str(forecast_file)] + params).df()
 
-            future_dates = [d.strftime("%Y-%m-%d") for d in daily_fc["date"]]
-            p10 = daily_fc["p10"].values
-            p50 = daily_fc["p50"].values
-            p90 = daily_fc["p90"].values
+                future_dates = [d.strftime("%Y-%m-%d") for d in daily_fc["date"]]
+                p10 = daily_fc["p10"].values
+                p50 = daily_fc["p50"].values
+                p90 = daily_fc["p90"].values
 
-            # Fetch corresponding historical series from data lake
-            if parquet_file.exists():
-                df_hist = duckdb.read_parquet(str(parquet_file)).df()
-                if category != "ALL":
-                    df_hist = df_hist[df_hist["cat_id"] == category]
-                if department != "ALL":
-                    df_hist = df_hist[df_hist["dept_id"] == department]
-                if item_id != "ALL":
-                    df_hist = df_hist[df_hist["item_id"] == item_id]
+                if parquet_file.exists():
+                    sql_hist = f"""
+                        SELECT date, CAST(SUM(sales) AS DOUBLE) as sales
+                        FROM read_parquet(?)
+                        {where_sql}
+                        GROUP BY date
+                        ORDER BY date
+                    """
+                    daily_hist = con.execute(sql_hist, [str(parquet_file)] + params).df()
+                    sub_hist = daily_hist.tail(60)
+                    history_dates = [d.strftime("%Y-%m-%d") for d in sub_hist["date"]]
+                    history_sales = sub_hist["sales"].values
+                else:
+                    history_dates = []
+                    history_sales = np.array([])
 
-                daily_hist = df_hist.groupby("date")["sales"].sum().reset_index().sort_values("date")
-                sub_hist = daily_hist.tail(60)
-                history_dates = [d.strftime("%Y-%m-%d") for d in sub_hist["date"]]
-                history_sales = sub_hist["sales"].values
+                return history_dates, history_sales, future_dates, p10, p50, p90, is_demo_mode
+
+            elif parquet_file.exists():
+                # Aggregated historical sales directly from data lake with DuckDB pushdown
+                sql_hist = f"""
+                    SELECT date, CAST(SUM(sales) AS DOUBLE) as sales
+                    FROM read_parquet(?)
+                    {where_sql}
+                    GROUP BY date
+                    ORDER BY date
+                """
+                daily_agg = con.execute(sql_hist, [str(parquet_file)] + params).df()
+                history_subset = daily_agg.tail(60)
+                history_dates = [d.strftime("%Y-%m-%d") for d in history_subset["date"]]
+                history_sales = history_subset["sales"].values
+
+                if len(history_subset) > 0:
+                    last_date = pd.to_datetime(history_subset["date"].iloc[-1])
+                else:
+                    last_date = pd.Timestamp("2016-05-22")
+
+                future_dates_dt = pd.date_range(last_date + pd.Timedelta(days=1), periods=horizon_days)
+                future_dates = [d.strftime("%Y-%m-%d") for d in future_dates_dt]
+
+                base_mean = float(np.mean(history_sales[-14:])) if len(history_sales) > 0 else 100.0
+                day_of_week_mult = np.array([1.15 if d.weekday() >= 5 else 0.95 for d in future_dates_dt])
+                trend = np.linspace(1.0, 1.05, horizon_days)
+
+                p50 = base_mean * day_of_week_mult * trend
+                p10 = p50 * 0.82
+                p90 = p50 * 1.25
+
+                return history_dates, history_sales, future_dates, p10, p50, p90, is_demo_mode
+
             else:
-                history_dates = []
-                history_sales = np.array([])
+                # Explicit demo mode fallback
+                is_demo_mode = True
+                history_dates_dt = pd.date_range(end=pd.Timestamp.today(), periods=60)
+                history_dates = [d.strftime("%Y-%m-%d") for d in history_dates_dt]
+                history_sales = np.random.poisson(lam=3500, size=60)
 
-            return history_dates, history_sales, future_dates, p10, p50, p90, is_demo_mode
+                future_dates_dt = pd.date_range(start=history_dates_dt[-1] + pd.Timedelta(days=1), periods=horizon_days)
+                future_dates = [d.strftime("%Y-%m-%d") for d in future_dates_dt]
+                p50 = np.array([3600.0] * horizon_days)
+                p10 = p50 * 0.80
+                p90 = p50 * 1.25
 
-        elif parquet_file.exists():
-            # Generate from data lake directly
-            df = duckdb.read_parquet(str(parquet_file)).df()
-            if category != "ALL":
-                df = df[df["cat_id"] == category]
-            if department != "ALL":
-                df = df[df["dept_id"] == department]
-            if item_id != "ALL":
-                df = df[df["item_id"] == item_id]
-
-            daily_agg = df.groupby("date")["sales"].sum().reset_index().sort_values("date")
-            history_subset = daily_agg.tail(60)
-            history_dates = [d.strftime("%Y-%m-%d") for d in history_subset["date"]]
-            history_sales = history_subset["sales"].values
-
-            last_date = history_subset["date"].iloc[-1]
-            future_dates_dt = pd.date_range(last_date + pd.Timedelta(days=1), periods=horizon_days)
-            future_dates = [d.strftime("%Y-%m-%d") for d in future_dates_dt]
-
-            base_mean = float(np.mean(history_sales[-14:])) if len(history_sales) > 0 else 100.0
-            day_of_week_mult = np.array([1.15 if d.weekday() >= 5 else 0.95 for d in future_dates_dt])
-            trend = np.linspace(1.0, 1.05, horizon_days)
-
-            p50 = base_mean * day_of_week_mult * trend
-            p10 = p50 * 0.82
-            p90 = p50 * 1.25
-
-            return history_dates, history_sales, future_dates, p10, p50, p90, is_demo_mode
-
-        else:
-            # Explicit demo mode fallback
-            is_demo_mode = True
-            history_dates_dt = pd.date_range(end=pd.Timestamp.today(), periods=60)
-            history_dates = [d.strftime("%Y-%m-%d") for d in history_dates_dt]
-            history_sales = np.random.poisson(lam=3500, size=60)
-
-            future_dates_dt = pd.date_range(start=history_dates_dt[-1] + pd.Timedelta(days=1), periods=horizon_days)
-            future_dates = [d.strftime("%Y-%m-%d") for d in future_dates_dt]
-            p50 = np.array([3600.0] * horizon_days)
-            p10 = p50 * 0.80
-            p90 = p50 * 1.25
-
-            return history_dates, history_sales, future_dates, p10, p50, p90, is_demo_mode
+                return history_dates, history_sales, future_dates, p10, p50, p90, is_demo_mode
+        finally:
+            con.close()
 
     def get_inventory_snapshot(
         self,
@@ -139,21 +155,39 @@ class DashboardDataLoader:
         parquet_file = self.stores_dir / f"store_{store_id}.parquet"
 
         if parquet_file.exists():
-            df = duckdb.read_parquet(str(parquet_file)).df()
-            if category != "ALL":
-                df = df[df["cat_id"] == category]
-            if department != "ALL":
-                df = df[df["dept_id"] == department]
+            con = duckdb.connect(":memory:")
+            try:
+                where_parts = []
+                params = []
+                if category != "ALL":
+                    where_parts.append("cat_id = ?")
+                    params.append(category)
+                if department != "ALL":
+                    where_parts.append("dept_id = ?")
+                    params.append(department)
+                where_sql = ("WHERE " + " AND ".join(where_parts)) if where_parts else ""
 
-            sample_items = df["item_id"].unique()[:40]
-            sub = df[df["item_id"].isin(sample_items)]
-
-            item_summary = sub.groupby(["item_id", "dept_id", "cat_id"]).agg({
-                "sales": ["mean", "max"],
-                "sell_price": "last"
-            }).reset_index()
-
-            item_summary.columns = ["item_id", "dept_id", "cat_id", "mean_sales", "max_sales", "sell_price"]
+                sql = f"""
+                    WITH ranked_items AS (
+                        SELECT DISTINCT item_id 
+                        FROM read_parquet(?)
+                        {where_sql}
+                        LIMIT 40
+                    )
+                    SELECT 
+                        p.item_id,
+                        p.dept_id,
+                        p.cat_id,
+                        CAST(AVG(p.sales) AS DOUBLE) as mean_sales,
+                        CAST(MAX(p.sales) AS DOUBLE) as max_sales,
+                        CAST(arg_max(p.sell_price, p.date) AS DOUBLE) as sell_price
+                    FROM read_parquet(?) p
+                    JOIN ranked_items r ON p.item_id = r.item_id
+                    GROUP BY p.item_id, p.dept_id, p.cat_id
+                """
+                item_summary = con.execute(sql, [str(parquet_file)] + params + [str(parquet_file)]).df()
+            finally:
+                con.close()
 
             np.random.seed(42)
             n = len(item_summary)
