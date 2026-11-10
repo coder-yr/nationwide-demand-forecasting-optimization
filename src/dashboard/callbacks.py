@@ -26,13 +26,34 @@ def register_callbacks(app, data_loader):
             Input("category-selector", "value"),
             Input("department-selector", "value"),
             Input("horizon-selector", "value"),
+            Input("model-selector", "value"),
             Input("slider-service-level", "value"),
             Input("slider-budget", "value"),
             Input("slider-lead-time", "value"),
             Input("btn-recompute", "n_clicks")
         ]
     )
-    def update_dashboard(store_id, category, department, horizon, service_level, budget, lead_time, n_clicks):
+    def update_dashboard(store_id, category, department, horizon, model_choice, service_level, budget, lead_time, n_clicks):
+        try:
+            horizon = int(horizon) if horizon is not None else 28
+        except (ValueError, TypeError):
+            horizon = 28
+
+        try:
+            service_level = float(service_level) if service_level is not None else 0.95
+        except (ValueError, TypeError):
+            service_level = 0.95
+
+        try:
+            lead_time = int(lead_time) if lead_time is not None else 3
+        except (ValueError, TypeError):
+            lead_time = 3
+
+        try:
+            budget = float(budget) if budget is not None else 50000.0
+        except (ValueError, TypeError):
+            budget = 50000.0
+
         # 1. Fetch series from data loader (persisted forecast artifacts or data lake)
         history_dates, history_sales, future_dates, p10, p50, p90, is_demo = data_loader.get_forecast_series(
             store_id=store_id,

@@ -29,6 +29,7 @@ def calculate_safety_stock_and_rop(
     Returns:
         Dict[str, np.ndarray]: Calculated metrics for each item in the array.
     """
+    service_level = float(service_level)
     z_service = stats.norm.ppf(service_level)
     z_90 = stats.norm.ppf(0.90)  # ~1.28155
 
